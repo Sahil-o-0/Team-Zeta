@@ -1,2 +1,3 @@
 .agents/
-Team-Zeta\skills-lock.json
+skills-lock.json
+*.pyc
