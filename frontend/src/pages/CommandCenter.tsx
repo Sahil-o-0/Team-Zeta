@@ -1,26 +1,61 @@
+import { useState, useEffect } from "react";
 import { Users, CheckCircle2, AlertTriangle, Network, MoreVertical, Terminal } from "lucide-react";
+import { api } from "../lib/api";
 
 export default function CommandCenter() {
-  const agents = [
-    { name: "Talent Scout", desc: "Sourcing across LinkedIn & Github", status: "Active Journey", subStatus: "4s latency", iconColor: "text-primary" },
-    { name: "Screening", desc: "Analyzing technical assessments", status: "Processing Batch 92", subStatus: "12ms response", iconColor: "text-secondary" },
-    { name: "Scheduling", desc: "No active invites pending", status: "Idle", subStatus: "Ready", iconColor: "text-on-surface-variant", dim: true },
-    { name: "Interview", desc: "Conducting Tier-1 Screening", status: "In Call: ID-882", subStatus: "Live Transcript", iconColor: "text-tertiary" },
-    { name: "Onboarding", desc: "Verifying compliance docs", status: "Queue: 12 New", subStatus: "Auto-verify active", iconColor: "text-primary" },
-  ];
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const logs = [
-    { time: "14:22:01", source: "TALENT_SCOUT", msg: "Sourced 3 candidates from LinkedIn (Role: Sr. Eng)", color: "text-primary" },
-    { time: "14:21:45", source: "SCREENING", msg: "Completed technical review for candidate #8812", color: "text-secondary" },
-    { time: "14:20:12", source: "POLICY", msg: "System state changed to IDLE", color: "text-tertiary", highlight: "IDLE" },
-    { time: "14:18:50", source: "COMMAND_CENTER", msg: "Auto-deploying additional screening instances...", color: "text-primary", bg: true },
-    { time: "14:15:22", source: "ESCALATION_QUEUE", msg: "Flag: Candidate #771 conflict in background check", color: "text-error" },
-    { time: "14:12:09", source: "ONBOARDING", msg: "Documents verified for employee 'Sarah Jenkins'", color: "text-on-secondary-container" },
-    { time: "14:10:01", source: "TALENT_SCOUT", msg: "Scanning internal database for referrals", color: "text-primary" },
-    { time: "14:08:44", source: "SYSTEM", msg: "Memory kernel optimized. 1.2GB reclaimed.", color: "text-on-surface" },
-    { time: "14:05:00", source: "CRON_JOB", msg: "Daily summary report generated.", color: "text-on-surface-variant", dim: true },
-  ];
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const tasksData = await api.getTasks();
+        setTasks(tasksData);
+        
+        // Group by agent to find latest status
+        const agentMap = new Map();
+        tasksData.forEach((task: any) => {
+          if (!agentMap.has(task.assigned_agent) || new Date(task.created_at) > new Date(agentMap.get(task.assigned_agent).created_at)) {
+            agentMap.set(task.assigned_agent, task);
+          }
+        });
+        
+        const activeAgents = Array.from(agentMap.values()).map(task => ({
+          name: task.assigned_agent,
+          desc: "Active processing node",
+          status: task.status,
+          subStatus: task.agent_sub_status || "Online",
+          iconColor: task.status === "Failed" ? "text-error" : "text-primary",
+          dim: task.status === "Completed"
+        }));
+        setAgents(activeAgents.length ? activeAgents : [
+          { name: "System Node", desc: "Awaiting tasks...", status: "Idle", subStatus: "Online", iconColor: "text-on-surface-variant", dim: true }
+        ]);
 
+        // Map logs
+        const recentLogs = tasksData.slice(0, 15).map((task: any) => ({
+          time: new Date(task.created_at).toLocaleTimeString(),
+          source: task.assigned_agent.toUpperCase(),
+          msg: task.status === "Failed" ? task.error_message : `Task processed: ${task.input_data ? JSON.stringify(task.input_data).substring(0, 50) : "No details"}`,
+          color: task.status === "Failed" ? "text-error" : task.status === "Completed" ? "text-secondary" : "text-primary",
+          bg: task.status === "InProgress"
+        }));
+        setLogs(recentLogs);
+      } catch (err) {
+        console.error("Failed to fetch data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="p-6 text-on-surface">Initializing Systems...</div>;
   return (
     <div className="p-6 grid grid-cols-12 gap-6 h-full">
       {/* SECTION 1: Metrics Overview */}
