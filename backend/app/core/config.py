@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 1 week token expiry
     
     # Database
-    # Standard SQLite fallback or hosted Supabase PostgreSQL URI
-    DATABASE_URL: str = Field(default="sqlite:///./zeta.db", env="DATABASE_URL")
+    # Hosted Supabase / PostgreSQL URI
+    DATABASE_URL: str = Field(default="", env="DATABASE_URL")
     
     # Supabase Integration credentials
     SUPABASE_URL: str = Field(default="", env="SUPABASE_URL")
@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     USE_MOCK_LLM: bool = Field(default=True, env="USE_MOCK_LLM")
     OPENAI_API_KEY: str = Field(default="", env="OPENAI_API_KEY")
     ANTHROPIC_API_KEY: str = Field(default="", env="ANTHROPIC_API_KEY")
+    GROQ_API_KEY: str = Field(default="", env="GROQ_API_KEY")
+    GROQ_MODEL: str = Field(default="openai/gpt-oss-120b", env="GROQ_MODEL")
+    
+    # OpenRouter Config
+    OPENROUTER_API_KEY: str = Field(default="", env="OPENROUTER_API_KEY")
+    OPENROUTER_BASE_URL: str = Field(default="https://openrouter.ai/api/v1", env="OPENROUTER_BASE_URL")
+    OPENROUTER_MODEL: str = Field(default="google/gemma-4-26b-a4b-it:free", env="OPENROUTER_MODEL")
     
     class Config:
         env_file = ".env"
