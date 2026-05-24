@@ -1,35 +1,54 @@
+import { useState, useEffect } from "react";
 import { Filter, History, MoreHorizontal, Code, Clock, CheckCircle2, Activity } from "lucide-react";
 import { cn } from "../lib/utils";
+import { api } from "../lib/api";
 
 export default function Pipeline() {
-  const columns = [
-    {
-      title: "Sourced", count: 24, items: [
-        { name: "Elena Vance", match: "98% Fit", badgeColor: "text-tertiary bg-tertiary/10", tagIcon: "✦", tag: "High Potential", tagColor: "text-primary", time: "2h ago", hasImg: true },
-        { name: "Marcus Thorne", match: "84% Fit", badgeColor: "text-on-surface-variant bg-surface-container-high", tagIcon: <Code className="w-3 h-3"/>, tag: "L7 Architect", time: "5h ago", dim: true }
-      ]
-    },
-    {
-      title: "Screening", count: 8, items: [
-        { name: "Sarah Connor", match: "94%", badgeColor: "text-tertiary bg-tertiary/10", tagIcon: "✦", tag: "Agent Interview Live", tagColor: "text-primary", progress: 66, glow: true }
-      ]
-    },
-    {
-      title: "Shortlisted", count: 5, items: [
-        { name: "Arthur Dent", match: "99%", badgeColor: "text-tertiary bg-tertiary/10", tagIcon: "✦", tag: "Top-Tier Signal", tagColor: "text-primary", tags: ["Expert", "Deep Learning"], activeBorder: true }
-      ]
-    },
-    {
-      title: "Interview", count: 3, items: [
-        { name: "Juliette Nichols", match: "91%", badgeColor: "text-tertiary bg-tertiary/10", tagIcon: <Clock className="w-3 h-3 text-accent-warning"/>, tag: "Stage 3: CEO Sync", time: "Tomorrow, 14:00 GMT" }
-      ]
-    },
-    {
-      title: "Offer", count: 1, items: [
-        { name: "Rick Deckard", match: "97%", badgeColor: "text-tertiary bg-tertiary/10", tagIcon: <CheckCircle2 className="w-3 h-3 text-tertiary"/>, tag: "Offer Pending Signature", fullProgress: true, shadow: true }
-      ]
-    }
-  ];
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await api.getCandidates();
+        setCandidates(data);
+      } catch (error) {
+        console.error("Failed to load candidates", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const stages = ["Sourced", "Screening", "Shortlisted", "Interview", "Offer"];
+
+  const columns = stages.map(stage => ({
+    title: stage,
+    count: candidates.filter(c => c.status === stage).length,
+    items: candidates.filter(c => c.status === stage).map(c => ({
+      name: c.masked_name || c.name,
+      match: `${c.score}% Fit`,
+      badgeColor: c.score >= 90 ? "text-tertiary bg-tertiary/10" : "text-on-surface-variant bg-surface-container-high",
+      tagIcon: c.score >= 90 ? "✦" : <Code className="w-3 h-3"/>,
+      tag: c.recommendation_reason ? c.recommendation_reason.substring(0, 25) + "..." : "Processing...",
+      tagColor: c.score >= 90 ? "text-primary" : "text-on-surface-variant",
+      tags: c.skills ? c.skills.split(",").slice(0, 2).map((s: string) => s.trim()) : [],
+      time: new Date(c.updated_at || c.created_at).toLocaleDateString(),
+      activeBorder: c.status === "Shortlisted",
+      glow: c.status === "Screening",
+      fullProgress: c.status === "Offer",
+      shadow: c.status === "Offer"
+    }))
+  }));
+
+  const avgAccuracy = candidates.length 
+    ? (candidates.reduce((acc, c) => acc + c.score, 0) / candidates.length).toFixed(1) 
+    : "0.0";
+
+  if (loading && candidates.length === 0) return <div className="p-8 text-on-surface">Loading pipeline...</div>;
 
   return (
     <div className="p-8 h-full flex flex-col relative">
@@ -75,19 +94,10 @@ export default function Pipeline() {
                     <span className={`font-mono-log font-bold text-[10px] px-1.5 py-0.5 rounded ${item.badgeColor}`}>{item.match}</span>
                   </div>
                   
-                  <div className={cn("flex items-center gap-2 mb-4", item.dim && "opacity-50")}>
+                  <div className={cn("flex items-center gap-2 mb-4")}>
                     {typeof item.tagIcon === 'string' ? <span className="text-primary text-sm">{item.tagIcon}</span> : item.tagIcon}
-                    <span className="font-caption text-xs text-on-surface-variant">{item.tag}</span>
+                    <span className="font-caption text-xs text-on-surface-variant truncate" title={item.tag}>{item.tag}</span>
                   </div>
-
-                  {item.progress && (
-                     <div className="flex items-center gap-2">
-                       <div className="flex-1 h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                          <div className="h-full bg-primary w-[66%]"></div>
-                       </div>
-                       <span className="font-mono-log text-[10px] text-outline">{item.progress}%</span>
-                     </div>
-                  )}
 
                   {item.fullProgress && (
                      <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mt-4">
@@ -95,20 +105,19 @@ export default function Pipeline() {
                      </div>
                   )}
 
-                   {item.tags && (
-                      <div className="flex gap-1">
-                        <span className="bg-secondary-container/20 text-secondary text-[9px] px-1 py-0.5 rounded uppercase font-mono-log">Expert</span>
-                        <span className="bg-primary/10 text-primary text-[9px] px-1 py-0.5 rounded uppercase font-mono-log">Deep Learning</span>
+                   {item.tags && item.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {item.tags.map((tag: string, tid: number) => (
+                          <span key={tid} className="bg-primary/10 text-primary text-[9px] px-1 py-0.5 rounded uppercase font-mono-log">{tag}</span>
+                        ))}
                       </div>
                    )}
 
-                  {(item.time || item.hasImg) && !item.progress && !item.tags && !item.fullProgress && (
+                  {(item.time) && !item.fullProgress && (
                     <div className="flex items-center justify-between mt-2">
-                       {item.hasImg ? (
-                          <div className="w-5 h-5 rounded-full bg-surface-container border border-bg-primary overflow-hidden">
-                            <Activity className="w-3 h-3 m-1 text-primary"/>
-                          </div>
-                       ) : <div></div>}
+                       <div className="w-5 h-5 rounded-full bg-surface-container border border-bg-primary overflow-hidden flex items-center justify-center">
+                         <Activity className="w-3 h-3 text-primary"/>
+                       </div>
                        {item.time && <span className="font-mono-log text-[10px] text-outline">{item.time}</span>}
                     </div>
                   )}
@@ -119,7 +128,7 @@ export default function Pipeline() {
         ))}
       </div>
 
-      <div className="absolute bottom-8 left-8 right-8 border border-border-default bg-surface-container-low p-4 rounded-sm flex flex-col pointer-events-none">
+      <div className="absolute bottom-8 left-8 right-8 border border-border-default bg-surface-container-low p-4 rounded-sm flex flex-col pointer-events-none z-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
              <Activity className="text-primary w-5 h-5" />
@@ -133,16 +142,16 @@ export default function Pipeline() {
               <p className="font-headline-md text-2xl font-bold text-primary">12.4 Days</p>
            </div>
            <div className="space-y-1">
-              <p className="text-xs text-on-surface-variant font-label-title">Diversity Index</p>
-              <p className="font-headline-md text-2xl font-bold text-tertiary">8.8/10</p>
+              <p className="text-xs text-on-surface-variant font-label-title">Active Candidates</p>
+              <p className="font-headline-md text-2xl font-bold text-tertiary">{candidates.length}</p>
            </div>
            <div className="space-y-1">
               <p className="text-xs text-on-surface-variant font-label-title">Agent Accuracy</p>
-              <p className="font-headline-md text-2xl font-bold text-on-surface">94.2%</p>
+              <p className="font-headline-md text-2xl font-bold text-on-surface">{avgAccuracy}%</p>
            </div>
            <div className="space-y-1">
-              <p className="text-xs text-on-surface-variant font-label-title">Active Agents</p>
-              <p className="font-headline-md text-2xl font-bold text-on-surface">08</p>
+              <p className="text-xs text-on-surface-variant font-label-title">Shortlisted %</p>
+              <p className="font-headline-md text-2xl font-bold text-on-surface">{candidates.length ? Math.round((candidates.filter(c => c.status === "Shortlisted" || c.status === "Interview" || c.status === "Offer").length / candidates.length) * 100) : 0}%</p>
            </div>
         </div>
       </div>

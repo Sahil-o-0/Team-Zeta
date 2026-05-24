@@ -1,22 +1,113 @@
-import { TrendingUp, Verified, UserSearch, BrainCircuit, Calendar, Mic, FileText, Shield, ArrowRight, Filter, AlignJustify, Grip, Terminal } from "lucide-react";
-import { cn } from "../lib/utils";
+import { useState, useEffect } from "react";
+import { TrendingUp, Verified, UserSearch, BrainCircuit, Calendar, Mic, FileText, Shield, ArrowRight, Filter, AlignJustify, Grip, Terminal, Network } from "lucide-react";
+import { api } from "../lib/api";
+
+const ICON_MAP: Record<string, any> = {
+  "Talent Scout": UserSearch,
+  "Screening Agent": BrainCircuit,
+  "Scheduling Ops": Calendar,
+  "Interview Agent": Mic,
+  "Offer Engine": FileText,
+  "Browser Agent": Shield,
+  "Employee Support Agent": Network,
+  "default": Terminal
+};
 
 export default function AgentNetwork() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await api.getTasks();
+        setTasks(data);
+      } catch (err) {
+        console.error("Failed to load tasks", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+    const interval = setInterval(loadData, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === "Completed").length;
+  const successRate = totalTasks ? ((completedTasks / totalTasks) * 100).toFixed(1) : "0.0";
+  const activeThreads = tasks.filter(t => t.status === "Running" || t.status === "Pending").length;
+  const networkLoad = totalTasks ? Math.min((activeThreads / 20) * 100, 100).toFixed(1) : "0.0";
+
   const stats = [
-    { label: "Active Threads", value: "128", delta: "+12%", color: "text-tertiary", icon: TrendingUp },
-    { label: "Network Load", value: "64.2%", progress: 64.2, color: "text-on-surface" },
-    { label: "Avg Success Rate", value: "98.4%", color: "text-tertiary", icon: Verified },
-    { label: "Memory Pressure", value: "14.8 GB", sub: "Stable", color: "text-on-surface" }
+    { label: "Active Threads", value: activeThreads.toString(), delta: "Live", color: "text-tertiary", icon: TrendingUp },
+    { label: "Network Load", value: `${networkLoad}%`, progress: parseFloat(networkLoad), color: "text-on-surface" },
+    { label: "Avg Success Rate", value: `${successRate}%`, color: "text-tertiary", icon: Verified },
+    { label: "Memory Pressure", value: `${(14.8 + activeThreads * 0.2).toFixed(1)} GB`, sub: activeThreads > 5 ? "High" : "Stable", color: "text-on-surface" }
   ];
 
-  const agents = [
-    { name: "Talent Scout", role: "HR & Sourcing", status: "Running", icon: UserSearch, iconColor: "text-primary", bgCore: "bg-primary", statusColor: "text-primary", statusBg: "bg-primary-container/10 border-primary/20", tasks: "1,422", rate: "99.2%", time: "1.2s", activity: "Active: Scoping LinkedIn...", pulse: true },
-    { name: "Screening AI", role: "Evaluation", status: "Learning", icon: BrainCircuit, iconColor: "text-secondary", bgCore: "bg-secondary", statusColor: "text-secondary", statusBg: "bg-secondary-container/10 border-secondary/20", tasks: "845", rate: "94.8%", time: "4.5s", activity: "Refining Resume Model..." },
-    { name: "Scheduling Ops", role: "Logistics", status: "Idle", icon: Calendar, iconColor: "text-on-surface-variant", bgCore: "bg-outline-variant", statusColor: "text-on-surface-variant", statusBg: "bg-surface-container-highest border-outline-variant", tasks: "2,810", rate: "99.9%", time: "0.4s", activity: "Standby Mode" },
-    { name: "Interview Bot", role: "Interaction", status: "Running", icon: Mic, iconColor: "text-primary", bgCore: "bg-primary", statusColor: "text-primary", statusBg: "bg-primary-container/10 border-primary/20", tasks: "42", rate: "91.5%", time: "1,800s", activity: "Active: 4 Live Calls...", pulse: true },
-    { name: "Offer Engine", role: "Legal & Finance", status: "Running", icon: FileText, iconColor: "text-primary", bgCore: "bg-primary", statusColor: "text-primary", statusBg: "bg-primary-container/10 border-primary/20", tasks: "118", rate: "98.1%", time: "12.8s", activity: "Generating Equity Matrix...", pulse: true },
-    { name: "Compliance Shield", role: "Security", status: "Running", icon: Shield, iconColor: "text-primary", bgCore: "bg-primary", statusColor: "text-primary", statusBg: "bg-primary-container/10 border-primary/20", tasks: "12,400+", rate: "100%", time: "0.1s", activity: "Scanning API Traffic...", pulse: true },
-  ];
+  const agentMap = new Map();
+  tasks.forEach((task: any) => {
+    if (!agentMap.has(task.assigned_agent)) {
+      agentMap.set(task.assigned_agent, {
+        name: task.assigned_agent,
+        role: "Autonomous Node",
+        icon: ICON_MAP[task.assigned_agent] || ICON_MAP.default,
+        iconColor: "text-primary",
+        bgCore: "bg-primary",
+        statusColor: "text-primary",
+        statusBg: "bg-primary-container/10 border-primary/20",
+        tasks: 0,
+        completed: 0,
+        time: "1.2s",
+        activity: "Standby",
+        pulse: false,
+        status: "Idle",
+        lastTaskTime: null
+      });
+    }
+    const agent = agentMap.get(task.assigned_agent);
+    agent.tasks += 1;
+    if (task.status === "Completed") agent.completed += 1;
+    
+    if (!agent.lastTaskTime || new Date(task.updated_at || task.created_at) > agent.lastTaskTime) {
+      agent.lastTaskTime = new Date(task.updated_at || task.created_at);
+      agent.activity = `Task: ${task.task_name.substring(0, 20)}...`;
+      agent.status = task.status;
+      agent.pulse = task.status === "Running" || task.status === "Pending";
+      
+      if (task.status === "Failed" || task.status === "Escalated") {
+        agent.iconColor = "text-error";
+        agent.statusColor = "text-error";
+        agent.statusBg = "bg-error/10 border-error/20";
+      } else if (task.status === "Completed") {
+        agent.iconColor = "text-secondary";
+        agent.statusColor = "text-secondary";
+        agent.statusBg = "bg-secondary-container/10 border-secondary/20";
+      } else {
+        agent.iconColor = "text-primary";
+        agent.statusColor = "text-primary";
+        agent.statusBg = "bg-primary-container/10 border-primary/20";
+      }
+    }
+  });
+
+  const agents = Array.from(agentMap.values()).map(a => ({
+    ...a,
+    rate: a.tasks ? ((a.completed / a.tasks) * 100).toFixed(1) + "%" : "0%"
+  }));
+
+  const logs = tasks.slice(0, 15).map((task: any) => ({
+    time: new Date(task.created_at).toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" }) + "." + new Date(task.created_at).getMilliseconds(),
+    agent: task.assigned_agent,
+    msg: task.status === "Failed" ? `[ERROR] ${task.error_log || "Task execution failed"}` : 
+         task.status === "Completed" ? `[SUCCESS] Output generated with ${(task.confidence_score*100).toFixed(0)}% confidence.` :
+         `[RUNNING] Executing: ${task.task_name}`,
+    type: task.status === "Failed" || task.status === "Escalated" ? "error" : 
+          task.status === "Running" || task.status === "Pending" ? "warn" : "info"
+  }));
+
+  if (loading && tasks.length === 0) return <div className="p-8 text-on-surface">Loading network...</div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto h-full overflow-y-auto">
@@ -27,7 +118,7 @@ export default function AgentNetwork() {
             Network Topology
           </div>
           <h2 className="font-headline-md text-3xl font-bold text-on-surface tracking-tight">Agent Network</h2>
-          <p className="text-on-surface-variant font-body-main mt-1">Real-time supervision of 12 autonomous entities in the ZETA swarm.</p>
+          <p className="text-on-surface-variant font-body-main mt-1">Real-time supervision of {agents.length} autonomous entities in the ZETA swarm.</p>
         </div>
         <div className="flex gap-3">
           <div className="bg-surface-container p-1 rounded-sm border border-border-default flex items-center">
@@ -49,7 +140,7 @@ export default function AgentNetwork() {
               {s.icon && <s.icon className={`w-4 h-4 ${s.color} ${s.label === 'Avg Success Rate' ? 'opacity-50' : ''}`} />}
               {s.sub && <span className="text-on-surface-variant text-caption italic">{s.sub}</span>}
               {s.delta && <span className="text-tertiary text-xs flex items-center gap-1">{s.delta}</span>}
-              {s.progress && (
+              {s.progress !== undefined && (
                 <div className="w-20 h-1 bg-surface-container-lowest rounded-full overflow-hidden mb-2">
                   <div className="h-full bg-primary" style={{ width: `${s.progress}%` }}></div>
                 </div>
@@ -102,14 +193,19 @@ export default function AgentNetwork() {
               </div>
             </div>
             <div className="px-5 py-3 bg-surface-container-high border-t border-border-default flex justify-between items-center">
-              <span className="text-xs text-on-surface-variant font-mono-log italic">{agent.activity}</span>
-              <button className={`${agent.statusColor} font-label-title text-xs flex items-center gap-1 group/btn hover:underline`}>
+              <span className="text-xs text-on-surface-variant font-mono-log italic truncate mr-2" title={agent.activity}>{agent.activity}</span>
+              <button className={`${agent.statusColor} font-label-title text-xs flex items-center gap-1 group/btn hover:underline whitespace-nowrap`}>
                 View Details
                 <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
               </button>
             </div>
           </div>
         ))}
+        {agents.length === 0 && (
+            <div className="col-span-full p-8 text-center text-on-surface-variant border border-dashed border-border-default rounded-xl">
+                No active agent nodes found in the network.
+            </div>
+        )}
       </div>
       
       <div className="mt-8 bg-surface-container border border-border-default rounded-xl p-6">
@@ -124,27 +220,15 @@ export default function AgentNetwork() {
              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent-danger"></span> Error</span>
           </div>
         </div>
-        <div className="space-y-3 font-mono-log text-sm overflow-hidden h-[200px]">
-           <div className="flex items-start gap-4 text-on-surface-variant border-l border-primary/30 pl-4 py-1">
-              <span className="text-primary opacity-50 shrink-0">14:22:01.44</span>
-              <span>[NETWORK] <span className="text-primary">Talent Scout</span> successfully parsed 42 GitHub repositories in cluster-west-1.</span>
-           </div>
-           <div className="flex items-start gap-4 text-on-surface-variant border-l border-primary/30 pl-4 py-1">
-              <span className="text-primary opacity-50 shrink-0">14:22:04.12</span>
-              <span>[LEARNING] <span className="text-secondary">Screening AI</span> weights updated for "Node.js Architect" persona. Loss: 0.0024.</span>
-           </div>
-           <div className="flex items-start gap-4 text-on-surface-variant border-l border-accent-warning/30 pl-4 py-1">
-              <span className="text-accent-warning opacity-50 shrink-0">14:22:08.55</span>
-              <span>[SCHEDULER] Rate-limit hit on Google Calendar API. Throttling requests for 60s.</span>
-           </div>
-           <div className="flex items-start gap-4 text-on-surface-variant border-l border-primary/30 pl-4 py-1">
-              <span className="text-primary opacity-50 shrink-0">14:22:12.89</span>
-              <span>[SECURITY] Identity verified for user <span className="text-on-surface">@j.smith</span>. Session hash validated.</span>
-           </div>
-           <div className="flex items-start gap-4 text-on-surface-variant border-l border-primary/30 pl-4 py-1">
-              <span className="text-primary opacity-50 shrink-0">14:22:15.02</span>
-              <span>[INTERVIEW] Bot initialized for candidate CID-4412. Audio latency: 14ms.</span>
-           </div>
+        <div className="space-y-3 font-mono-log text-sm overflow-hidden h-[200px] overflow-y-auto custom-scrollbar">
+           {logs.map((log, i) => (
+               <div key={i} className={`flex items-start gap-4 text-on-surface-variant border-l pl-4 py-1
+                   ${log.type === 'error' ? 'border-error/50 text-error/90' : 
+                     log.type === 'warn' ? 'border-accent-warning/50' : 'border-primary/30'}`}>
+                  <span className={`${log.type === 'error' ? 'text-error' : log.type === 'warn' ? 'text-accent-warning' : 'text-primary'} opacity-50 shrink-0 w-24`}>{log.time}</span>
+                  <span>[{log.agent.toUpperCase()}] <span className={log.type === 'error' ? 'text-error' : 'text-on-surface'}>{log.msg}</span></span>
+               </div>
+           ))}
         </div>
       </div>
     </div>

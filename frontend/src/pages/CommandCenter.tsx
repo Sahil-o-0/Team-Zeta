@@ -6,13 +6,31 @@ export default function CommandCenter() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    candidates: 0,
+    tasksCompleted: 0,
+    autoRatio: "0%",
+    escalations: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const tasksData = await api.getTasks();
+        const [tasksData, candidatesData, roiData, escalationsData] = await Promise.all([
+          api.getTasks(),
+          api.getCandidates(),
+          api.getAnalyticsROI(),
+          api.getEscalations()
+        ]);
+        
         setTasks(tasksData);
+        setStats({
+          candidates: candidatesData.length,
+          tasksCompleted: roiData.completed_tasks || 0,
+          autoRatio: roiData.autonomous_success_ratio || "0%",
+          escalations: escalationsData.length
+        });
         
         // Group by agent to find latest status
         const agentMap = new Map();
@@ -67,11 +85,11 @@ export default function CommandCenter() {
           </div>
           <div className="mt-4">
             <div className="flex items-end gap-2">
-              <span className="font-headline-md text-4xl leading-none text-on-surface">47</span>
-              <span className="text-tertiary font-label-title text-sm mb-1">+23%</span>
+              <span className="font-headline-md text-4xl leading-none text-on-surface">{stats.candidates}</span>
+              <span className="text-tertiary font-label-title text-sm mb-1">Live</span>
             </div>
             <div className="w-full h-1 bg-surface-container mt-4 overflow-hidden rounded-full">
-              <div className="h-full bg-primary w-[70%]"></div>
+              <div className="h-full bg-primary" style={{ width: `${Math.min(stats.candidates * 2, 100)}%` }}></div>
             </div>
           </div>
         </div>
@@ -83,11 +101,11 @@ export default function CommandCenter() {
           </div>
           <div className="mt-4">
             <div className="flex items-end gap-2">
-              <span className="font-headline-md text-4xl leading-none text-on-surface">312</span>
-              <span className="text-on-surface-variant font-caption text-xs mb-1">98.7% auto</span>
+              <span className="font-headline-md text-4xl leading-none text-on-surface">{stats.tasksCompleted}</span>
+              <span className="text-on-surface-variant font-caption text-xs mb-1">{stats.autoRatio} auto</span>
             </div>
             <div className="w-full h-1 bg-surface-container mt-4 overflow-hidden rounded-full">
-              <div className="h-full bg-secondary w-[98.7%]"></div>
+              <div className="h-full bg-secondary" style={{ width: parseFloat(stats.autoRatio) ? `${parseFloat(stats.autoRatio)}%` : '0%' }}></div>
             </div>
           </div>
         </div>
@@ -99,11 +117,11 @@ export default function CommandCenter() {
           </div>
           <div className="mt-4">
             <div className="flex items-end gap-2">
-              <span className="font-headline-md text-4xl leading-none text-on-surface">3</span>
-              <span className="text-error font-label-title text-sm mb-1">Critical</span>
+              <span className="font-headline-md text-4xl leading-none text-on-surface">{stats.escalations}</span>
+              <span className="text-error font-label-title text-sm mb-1">Pending</span>
             </div>
             <div className="w-full h-1 bg-surface-container mt-4 overflow-hidden rounded-full">
-              <div className="h-full bg-error w-[10%]"></div>
+              <div className="h-full bg-error" style={{ width: stats.escalations > 0 ? '100%' : '0%' }}></div>
             </div>
           </div>
         </div>

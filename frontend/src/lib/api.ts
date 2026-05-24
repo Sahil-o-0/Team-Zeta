@@ -76,5 +76,13 @@ export const api = {
       },
       body: JSON.stringify({ status, notes, reviewer_name: "Admin" }),
     });
+  },
+
+  getCandidates: async () => {
+    return fetchWithAuth("/candidates");
+  },
+
+  getAnalyticsROI: async () => {
+    return fetchWithAuth("/analytics/roi");
   }
 };
