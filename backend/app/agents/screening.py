@@ -44,55 +44,8 @@ class ScreeningAgent:
         """
         # Apply strict bias mitigation
         masked_data = self.apply_bias_mitigation(name, resume_text)
-
-        # Real-time LLM integration if mock mode is disabled
-        from app.core.config import settings
-        from app.core.llm import FailoverLLMEngine
-        if not settings.USE_MOCK_LLM:
-            system_prompt = (
-                "You are ZETA's Bias-Masked Screening Agent. Evaluate the candidate resume text against the requirements.\n"
-                "Return a valid JSON object with the keys:\n"
-                "- 'score': integer from 0 to 100\n"
-                "- 'pros': a list of strings representing candidate strengths relative to JD\n"
-                "- 'cons': a list of strings representing candidate gaps\n"
-                "- 'recommendation_reason': string summarizing recommendation (Immediate Shortlist, Hold, or Reject)\n"
-                "Do NOT return any other text, markdown wrapper, or formatting besides raw valid JSON."
-            )
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Requirements: {jd_requirements}\n\nResume:\n{masked_data['masked_resume_text']}"}
-            ]
-            try:
-                # Triggers automatic failover (Groq -> OpenRouter)
-                llm_response = await FailoverLLMEngine.get_completion(
-                    messages=messages,
-                    mock_fallback=""
-                )
-                if llm_response.strip():
-                    # Clean markdown wrappers if any
-                    cleaned_json = llm_response.strip()
-                    if cleaned_json.startswith("```json"):
-                        cleaned_json = cleaned_json.split("```json")[1]
-                    if cleaned_json.endswith("```"):
-                        cleaned_json = cleaned_json.rsplit("```", 1)[0]
-                    
-                    parsed_res = json.loads(cleaned_json.strip())
-                    
-                    # Validate keys exist
-                    if "score" in parsed_res and "pros" in parsed_res and "cons" in parsed_res:
-                        return {
-                            "success": True,
-                            "masked_name": masked_data["masked_name"],
-                            "score": int(parsed_res["score"]),
-                            "pros": json.dumps(parsed_res["pros"]),
-                            "cons": json.dumps(parsed_res["cons"]),
-                            "recommendation_reason": parsed_res.get("recommendation_reason", "Recommended based on LLM evaluation."),
-                            "confidence_score": 0.95
-                        }
-            except Exception as e:
-                print(f"[Screening Agent] LLM JSON parse failed, falling back to heuristics. Error: {e}")
         
-        # Evaluate matched requirements against masked resume (HEURISTIC FALLBACK)
+        # Evaluate matched requirements against masked resume
         resume_lower = masked_data["masked_resume_text"].lower()
         matched = []
         unmatched = []

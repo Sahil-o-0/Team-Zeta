@@ -73,3 +73,96 @@ def read_candidate(
     if not cand:
         raise HTTPException(status_code=404, detail="Candidate not found")
     return cand
+
+from fastapi import UploadFile, File
+from app.models.task import AgentTask
+
+@router.post("/upload-resume")
+async def upload_resume(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Accepts uploaded resume file and triggers autonomous screening task pipeline"""
+    contents = await file.read()
+    
+    # Parse PDF text if file is a PDF
+    if file.filename.lower().endswith(".pdf"):
+        import io
+        from pypdf import PdfReader
+        try:
+            pdf_file = io.BytesIO(contents)
+            reader = PdfReader(pdf_file)
+            text_list = []
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_list.append(page_text)
+            text = "\n".join(text_list)
+        except Exception as pdf_err:
+            print(f"[Error] Failed to parse PDF with pypdf: {pdf_err}")
+            text = contents.decode("utf-8", errors="ignore")
+    else:
+        text = contents.decode("utf-8", errors="ignore")
+    
+    filename = file.filename
+    cand_name = filename.split(".")[0].replace("_", " ").title()
+    
+    from datetime import datetime
+    unique_email = f"{cand_name.lower().replace(' ', '')}_{int(datetime.now().timestamp())}@example.com"
+    
+    db_candidate = Candidate(
+        name=cand_name,
+        email=unique_email,
+        masked_name=f"Masked-{cand_name[:4]}",
+        status="Sourced",
+        score=75,
+        skills="Python, SQL, Analytics",
+        recommendation_reason="Resume uploaded via Candidate Engine. Screening initiated."
+    )
+    db.add(db_candidate)
+    db.commit()
+    db.refresh(db_candidate)
+    
+    async def screen_candidate_task():
+        from app.core.database import SessionLocal
+        inner_db = SessionLocal()
+        try:
+            task = AgentTask(
+                task_name=f"Screening resume: {cand_name}",
+                assigned_agent="Screening Agent",
+                status="Running",
+                input_data=f"Candidate: {cand_name}",
+                confidence_score=0.9
+            )
+            inner_db.add(task)
+            inner_db.commit()
+            inner_db.refresh(task)
+            
+            from app.agents.screening import ScreeningAgent
+            screening_agent = ScreeningAgent()
+            screen_res = await screening_agent.execute(
+                name=cand_name,
+                resume_text=text,
+                jd_requirements=["python", "systems", "sql"]
+            )
+            
+            cand = inner_db.query(Candidate).filter(Candidate.id == db_candidate.id).first()
+            if cand:
+                cand.score = screen_res["score"]
+                cand.recommendation_reason = screen_res["recommendation_reason"]
+                cand.status = "Screening"
+                inner_db.commit()
+                
+            task_rec = inner_db.query(AgentTask).filter(AgentTask.id == task.id).first()
+            if task_rec:
+                task_rec.status = "Completed"
+                task_rec.output_data = f"Score: {screen_res['score']}. Recommendation: {screen_res['recommendation_reason']}"
+                inner_db.commit()
+        except Exception as e:
+            print(f"[Error] Resume task screening failed: {e}")
+        finally:
+            inner_db.close()
+            
+    background_tasks.add_task(screen_candidate_task)
+    return {"message": "Upload success", "candidate_id": db_candidate.id, "name": cand_name}

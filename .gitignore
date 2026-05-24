@@ -1,9 +1,5 @@
-.env
-*.env
-__pycache__/
+.agents/
+skills-lock.json
 *.pyc
+backend/api_test.py
 backend/.env
-backend/**/__pycache__/
-.agents
-skill-lock.json
-.vscode

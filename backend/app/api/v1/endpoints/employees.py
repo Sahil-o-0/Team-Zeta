@@ -85,28 +85,3 @@ def query_employee_hierarchy_graph(
         "direct_reports": reports,
         "nodes_visited_count": len(neighbors) + 1
     }
-
-from app.agents.manager import ManagerAgent
-manager_agent = ManagerAgent()
-
-@router.post("/submit-request")
-async def submit_employee_request(
-    payload: Dict[str, Any],
-    db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
-):
-    """
-    Submits a dynamic employee request (PTO, support query) for compliance auditing.
-    Runs autonomous Policy Agent checks and triggers Soft/Hard/Emergency escalations.
-    """
-    name = payload.get("employee_name")
-    email = payload.get("email")
-    request_text = payload.get("request_text")
-    
-    if not name or not email or not request_text:
-        raise HTTPException(status_code=400, detail="Missing required parameters: employee_name, email, request_text")
-        
-    res = await manager_agent.handle_employee_request(db, name, email, request_text)
-    if not res.get("success"):
-        raise HTTPException(status_code=500, detail=res.get("error"))
-    return res

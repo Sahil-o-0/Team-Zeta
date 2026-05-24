@@ -84,5 +84,21 @@ export const api = {
 
   getAnalyticsROI: async () => {
     return fetchWithAuth("/analytics/roi");
+  },
+
+  getEmployees: async () => {
+    return fetchWithAuth("/employees");
+  },
+
+  getPolicies: async () => {
+    return fetchWithAuth("/policies");
+  },
+
+  searchPolicies: async (query: string) => {
+    return fetchWithAuth(`/policies/semantic-query?query=${encodeURIComponent(query)}`);
+  },
+
+  getEmployeeGraph: async (id: number) => {
+    return fetchWithAuth(`/employees/${id}/relationship-graph`);
   }
 };

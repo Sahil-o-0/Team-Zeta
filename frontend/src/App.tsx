@@ -10,6 +10,8 @@ import CommandCenter from "./pages/CommandCenter";
 import AgentNetwork from "./pages/AgentNetwork";
 import Pipeline from "./pages/Pipeline";
 import EscalationQueue from "./pages/EscalationQueue";
+import Intelligence from "./pages/Intelligence";
+import Memory from "./pages/Memory";
 import Login from "./pages/Login";
 import { getToken } from "./lib/api";
 
@@ -19,7 +21,7 @@ export default function App() {
   // Listen to storage events to handle logout across tabs if needed
   useEffect(() => {
     const handleStorageChange = () => {
-      setIsAuthenticated(!!getToken());
+      setIsAuthenticated(getToken());
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
@@ -37,6 +39,8 @@ export default function App() {
           <Route path="network" element={<AgentNetwork />} />
           <Route path="pipeline" element={<Pipeline />} />
           <Route path="escalation" element={<EscalationQueue />} />
+          <Route path="intelligence" element={<Intelligence />} />
+          <Route path="memory" element={<Memory />} />
         </Route>
       </Routes>
     </BrowserRouter>
