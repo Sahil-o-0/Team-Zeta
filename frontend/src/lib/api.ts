@@ -100,5 +100,15 @@ export const api = {
 
   getEmployeeGraph: async (id: number) => {
     return fetchWithAuth(`/employees/${id}/relationship-graph`);
+  },
+
+  triggerSourcing: async (jobTitle: string, requirements: string[]) => {
+    const params = new URLSearchParams();
+    params.append("job_title", jobTitle);
+    requirements.forEach(req => params.append("requirements", req));
+    
+    return fetchWithAuth(`/candidates/trigger-sourcing?${params.toString()}`, {
+      method: "POST"
+    });
   }
 };

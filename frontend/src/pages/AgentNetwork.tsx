@@ -16,6 +16,28 @@ const ICON_MAP: Record<string, any> = {
 export default function AgentNetwork() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [jobTitle, setJobTitle] = useState("Software Systems Architect");
+  const [jdRequirements, setJdRequirements] = useState("python, systems, sql");
+  const [deploying, setDeploying] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const handleDeploy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jobTitle.trim() || !jdRequirements.trim()) return;
+    setDeploying(true);
+    setMessage("");
+    try {
+      const reqList = jdRequirements.split(",").map(r => r.trim()).filter(r => r.length > 0);
+      await api.triggerSourcing(jobTitle, reqList);
+      setMessage("Swarm sourcing pipeline initiated successfully! Talent Scout and Screening Agent deployed.");
+      setTimeout(() => setMessage(""), 5000);
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to deploy agent swarm pipeline.");
+    } finally {
+      setDeploying(false);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -129,6 +151,51 @@ export default function AgentNetwork() {
             <Filter className="w-4 h-4" /> All Departments
           </button>
         </div>
+      </div>
+
+      {/* Deploy Agent Swarm Controller */}
+      <div className="bg-surface-container border border-border-default p-6 mb-8 rounded-sm shadow-lg">
+        <h3 className="font-label-title text-sm uppercase tracking-wider text-primary font-bold mb-4 flex items-center gap-2">
+          <Network className="w-5 h-5 text-primary" /> Deploy Sourcing & Screening Swarm (Agentic Sourcing Workflow)
+        </h3>
+        
+        {message && (
+          <div className="mb-4 bg-primary/10 border-l-2 border-primary p-3 text-primary text-xs font-label-title">
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleDeploy} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+          <div className="lg:col-span-4">
+            <label className="block text-[10px] uppercase font-bold tracking-wider text-on-surface-variant mb-2">Target Job Title</label>
+            <input 
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g. Senior Python Developer"
+              className="w-full bg-background border border-border-default px-4 py-2.5 rounded-sm text-on-surface text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div className="lg:col-span-6">
+            <label className="block text-[10px] uppercase font-bold tracking-wider text-on-surface-variant mb-2">Judgment Criteria (Comma-separated Job Description keywords)</label>
+            <input 
+              type="text"
+              value={jdRequirements}
+              onChange={(e) => setJdRequirements(e.target.value)}
+              placeholder="e.g. python, systems, postgres, docker"
+              className="w-full bg-background border border-border-default px-4 py-2.5 rounded-sm text-on-surface text-sm focus:border-primary focus:outline-none font-mono text-xs"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <button 
+              type="submit"
+              disabled={deploying}
+              className="w-full bg-primary text-on-primary py-2.5 font-label-title text-sm font-semibold rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {deploying ? "Deploying..." : "Deploy Swarm"}
+            </button>
+          </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

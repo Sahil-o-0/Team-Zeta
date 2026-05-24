@@ -5,7 +5,6 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [jdRequirements, setJdRequirements] = useState("python, systems, sql");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -38,7 +37,6 @@ export default function App() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("jd_requirements", jdRequirements);
       
       const response = await fetch("http://localhost:8000/api/v1/candidates/upload-resume", {
         method: "POST",
@@ -164,16 +162,6 @@ export default function App() {
                     <AlertCircle className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Job Description Requirements (Judgment Criteria)</label>
-                <textarea 
-                  value={jdRequirements}
-                  onChange={(e) => setJdRequirements(e.target.value)}
-                  placeholder="Enter target keywords separated by commas (e.g. react, node, sql)"
-                  className="w-full bg-gray-950 border border-gray-800 p-3 rounded-lg text-sm text-white placeholder-gray-700 focus:border-primary focus:outline-none transition-colors h-24 resize-none font-mono text-xs"
-                />
               </div>
 
               <button 
