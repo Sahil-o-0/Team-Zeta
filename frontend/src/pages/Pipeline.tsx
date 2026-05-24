@@ -29,7 +29,7 @@ export default function Pipeline() {
     title: stage,
     count: candidates.filter(c => c.status === stage).length,
     items: candidates.filter(c => c.status === stage).map(c => ({
-      name: c.masked_name || c.name,
+      name: c.name,
       match: `${c.score}% Fit`,
       badgeColor: c.score >= 90 ? "text-tertiary bg-tertiary/10" : "text-on-surface-variant bg-surface-container-high",
       tagIcon: c.score >= 90 ? "✦" : <Code className="w-3 h-3"/>,
@@ -70,8 +70,8 @@ export default function Pipeline() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto custom-scrollbar pb-36">
-        <div className="grid grid-cols-5 gap-4 h-[calc(100vh-320px)] min-w-[1200px]">
+      <div className="flex-1 overflow-x-auto custom-scrollbar px-6 pb-36 pt-2">
+        <div className="grid grid-cols-5 gap-6 h-[calc(100vh-320px)] min-w-[1200px]">
           {columns.map((col, i) => (
             <div key={i} className="flex flex-col gap-4 h-full">
             <div className="flex items-center justify-between px-2 pb-2 border-b border-border-default">
