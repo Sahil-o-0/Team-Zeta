@@ -70,9 +70,10 @@ export default function Pipeline() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-5 gap-4 overflow-hidden">
-        {columns.map((col, i) => (
-          <div key={i} className="flex flex-col gap-4 h-full">
+      <div className="flex-1 overflow-x-auto custom-scrollbar pb-36">
+        <div className="grid grid-cols-5 gap-4 h-[calc(100vh-320px)] min-w-[1200px]">
+          {columns.map((col, i) => (
+            <div key={i} className="flex flex-col gap-4 h-full">
             <div className="flex items-center justify-between px-2 pb-2 border-b border-border-default">
               <div className="flex items-center gap-2">
                 <span className="font-label-title text-sm text-on-surface font-semibold">{col.title}</span>
@@ -127,6 +128,7 @@ export default function Pipeline() {
           </div>
         ))}
       </div>
+    </div>
 
       <div className="absolute bottom-8 left-8 right-8 border border-border-default bg-surface-container-low p-4 rounded-sm flex flex-col pointer-events-none z-10">
         <div className="flex items-center justify-between mb-4">
