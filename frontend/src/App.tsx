@@ -12,6 +12,7 @@ import Pipeline from "./pages/Pipeline";
 import EscalationQueue from "./pages/EscalationQueue";
 import Intelligence from "./pages/Intelligence";
 import Memory from "./pages/Memory";
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import { getToken } from "./lib/api";
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="escalation" element={<EscalationQueue />} />
           <Route path="intelligence" element={<Intelligence />} />
           <Route path="memory" element={<Memory />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

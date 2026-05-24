@@ -77,10 +77,13 @@ def read_candidate(
 from fastapi import UploadFile, File
 from app.models.task import AgentTask
 
+from fastapi import Form
+
 @router.post("/upload-resume")
 async def upload_resume(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    jd_requirements: str = Form("python, systems, sql"),
     db: Session = Depends(get_db)
 ):
     """Accepts uploaded resume file and triggers autonomous screening task pipeline"""
@@ -108,6 +111,11 @@ async def upload_resume(
     filename = file.filename
     cand_name = filename.split(".")[0].replace("_", " ").title()
     
+    # Parse custom requirements passed from the tester form
+    reqs = [r.strip().lower() for r in jd_requirements.split(",") if r.strip()]
+    if not reqs:
+        reqs = ["python", "systems", "sql"]
+    
     from datetime import datetime
     unique_email = f"{cand_name.lower().replace(' ', '')}_{int(datetime.now().timestamp())}@example.com"
     
@@ -117,8 +125,8 @@ async def upload_resume(
         masked_name=f"Masked-{cand_name[:4]}",
         status="Sourced",
         score=75,
-        skills="Python, SQL, Analytics",
-        recommendation_reason="Resume uploaded via Candidate Engine. Screening initiated."
+        skills=", ".join(reqs).title(),
+        recommendation_reason=f"Resume uploaded via Candidate Engine. Screening against: {', '.join(reqs)}"
     )
     db.add(db_candidate)
     db.commit()
@@ -132,7 +140,7 @@ async def upload_resume(
                 task_name=f"Screening resume: {cand_name}",
                 assigned_agent="Screening Agent",
                 status="Running",
-                input_data=f"Candidate: {cand_name}",
+                input_data=f"Candidate: {cand_name}. Criteria: {', '.join(reqs)}",
                 confidence_score=0.9
             )
             inner_db.add(task)
@@ -144,7 +152,7 @@ async def upload_resume(
             screen_res = await screening_agent.execute(
                 name=cand_name,
                 resume_text=text,
-                jd_requirements=["python", "systems", "sql"]
+                jd_requirements=reqs
             )
             
             cand = inner_db.query(Candidate).filter(Candidate.id == db_candidate.id).first()

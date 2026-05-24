@@ -5,6 +5,7 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [jdRequirements, setJdRequirements] = useState("python, systems, sql");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -37,6 +38,7 @@ export default function App() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("jd_requirements", jdRequirements);
       
       const response = await fetch("http://localhost:8000/api/v1/candidates/upload-resume", {
         method: "POST",
@@ -142,29 +144,41 @@ export default function App() {
           </div>
 
           {file && (
-            <div className="mt-6">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Selected File</h4>
-              <div className="flex items-center justify-between p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-800 rounded-md">
-                    <FileText className="w-5 h-5 text-primary" />
+            <div className="mt-6 space-y-4">
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Selected File</h4>
+                <div className="flex items-center justify-between p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gray-800 rounded-md">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white line-clamp-1">{file.name}</p>
+                      <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white line-clamp-1">{file.name}</p>
-                    <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
+                  <button 
+                    onClick={() => setFile(null)}
+                    className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setFile(null)}
-                  className="p-2 text-gray-500 hover:text-red-400 transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Job Description Requirements (Judgment Criteria)</label>
+                <textarea 
+                  value={jdRequirements}
+                  onChange={(e) => setJdRequirements(e.target.value)}
+                  placeholder="Enter target keywords separated by commas (e.g. react, node, sql)"
+                  className="w-full bg-gray-950 border border-gray-800 p-3 rounded-lg text-sm text-white placeholder-gray-700 focus:border-primary focus:outline-none transition-colors h-24 resize-none font-mono text-xs"
+                />
               </div>
 
               <button 
                 onClick={handleUpload}
-                className="w-full mt-6 bg-primary hover:bg-primary-hover text-white font-medium py-3 rounded-lg transition-colors shadow-lg shadow-primary/20"
+                className="w-full bg-primary hover:bg-primary-hover text-white font-medium py-3 rounded-lg transition-colors shadow-lg shadow-primary/20"
               >
                 Start Autonomous Analysis
               </button>
