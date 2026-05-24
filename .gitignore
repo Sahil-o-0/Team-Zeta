@@ -5,5 +5,5 @@ __pycache__/
 backend/.env
 backend/**/__pycache__/
 .agents
-.skill-lock.json
+skill-lock.json
 .vscode
